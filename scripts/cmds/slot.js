@@ -17,16 +17,15 @@ module.exports = {
     const { senderID } = event;
     const bet = parseInt(args[0]);
 
-    // Enhanced money formatting with colors
     const formatMoney = (amount) => {
       if (isNaN(amount)) return "💲0";
       amount = Number(amount);
       const scales = [
-        { value: 1e15, suffix: 'Q', color: '🌈' },  // Quadrillion
-        { value: 1e12, suffix: 'T', color: '✨' },  // Trillion
-        { value: 1e9, suffix: 'B', color: '💎' },  // Billion
-        { value: 1e6, suffix: 'M', color: '💰' },   // Million
-        { value: 1e3, suffix: 'k', color: '💵' }    // Thousand
+        { value: 1e15, suffix: 'Q', color: '🌈' },
+        { value: 1e12, suffix: 'T', color: '✨' },
+        { value: 1e9, suffix: 'B', color: '💎' },
+        { value: 1e6, suffix: 'M', color: '💰' },
+        { value: 1e3, suffix: 'k', color: '💵' }
       ];
       const scale = scales.find(s => amount >= s.value);
       if (scale) {
@@ -36,16 +35,33 @@ module.exports = {
       return `💲${amount.toLocaleString()}`;
     };
 
-    if (isNaN(bet) || bet <= 0) {
+    if (isNaN(bet) || bet <= 0)
       return message.reply("🔴 𝗘𝗥𝗥𝗢𝗥: Please enter a valid bet amount!");
-    }
+
+    if (bet > 10000000)
+      return message.reply("⚠️ 𝗟𝗜𝗠𝗜𝗧: Maximum bet is 10,000,000 coins!");
 
     const user = await usersData.get(senderID);
-    if (user.money < bet) {
-      return message.reply(`🔴 𝗜𝗡𝗦𝗨𝗙𝗙𝗜𝗖𝗜𝗘𝗡𝗧 𝗙𝗨𝗡𝗗𝗦: You need ${formatMoney(bet - user.money)} more to play!`);
+
+    // --- PLAY LIMIT CHECK ---
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    let playCount = user.slotsPlayCount || 0;
+    let lastPlay = user.slotsLastPlay || 0;
+    const now = Date.now();
+
+    if (now - lastPlay > SIX_HOURS) {
+      playCount = 0;
     }
 
-    // Premium symbols with different weights
+    if (playCount >= 20) {
+      const waitTime = SIX_HOURS - (now - lastPlay);
+      const minutes = Math.ceil(waitTime / 60000);
+      return message.reply(`⚠️ 𝗟𝗜𝗠𝗜𝗧 𝗥𝗘𝗔𝗖𝗛𝗘𝗗: You have played 20 times in the last 6 hours. Please wait ${minutes} minute(s) to play again.`);
+    }
+
+    if (user.money < bet)
+      return message.reply(`🔴 𝗜𝗡𝗦𝗨𝗙𝗙𝗜𝗖𝗜𝗘𝗡𝗧 𝗙𝗨𝗡𝗗𝗦: You need ${formatMoney(bet - user.money)} more to play!`);
+
     const symbols = [
       { emoji: "🍒", weight: 30 },
       { emoji: "🍋", weight: 25 },
@@ -55,9 +71,8 @@ module.exports = {
       { emoji: "7️⃣", weight: 3 }
     ];
 
-    // Weighted random selection
     const roll = () => {
-      const totalWeight = symbols.reduce((sum, symbol) => sum + symbol.weight, 0);
+      const totalWeight = symbols.reduce((sum, s) => sum + s.weight, 0);
       let random = Math.random() * totalWeight;
       for (const symbol of symbols) {
         if (random < symbol.weight) return symbol.emoji;
@@ -70,33 +85,24 @@ module.exports = {
     const slot2 = roll();
     const slot3 = roll();
 
-    // 50% chance to win with various multipliers
     let winnings = 0;
-    let outcome;
+    let outcome = "";
     let winType = "";
-    let bonus = "";
 
-    if (slot1 === "7️⃣" && slot2 === "7️⃣" && slot3 === "7️⃣") {
-      winnings = bet * 10;
-      outcome = "🔥 𝗠𝗘𝗚𝗔 𝗝𝗔𝗖𝗞𝗣𝗢𝗧! 𝗧𝗥𝗜𝗣𝗟𝗘 7️⃣!";
+    if (slot1 === slot2 && slot2 === slot3) {
+      winnings = bet * 4;
+      outcome = "🔥 𝗠𝗘𝗚𝗔 𝗝𝗔𝗖𝗞𝗣𝗢𝗧! 𝗧𝗥𝗜𝗣𝗟𝗘 𝗠𝗔𝗧𝗖𝗛!";
       winType = "💎 𝗠𝗔𝗫 𝗪𝗜𝗡";
-      bonus = "🎆 𝗕𝗢𝗡𝗨𝗦: +3% to your total balance!";
-      await usersData.set(senderID, { money: user.money * 1.03 });
-    } 
-    else if (slot1 === slot2 && slot2 === slot3) {
-      winnings = bet * 5;
-      outcome = "💰 𝗝𝗔𝗖𝗞𝗣𝗢𝗧! 3 matching symbols!";
-      winType = "💫 𝗕𝗜𝗚 𝗪𝗜𝗡";
     } 
     else if (slot1 === slot2 || slot2 === slot3 || slot1 === slot3) {
-      winnings = bet * 2;
-      outcome = "✨ 𝗡𝗜𝗖𝗘! 2 matching symbols!";
+      winnings = bet * 4;
+      outcome = "💰 2 matching symbols!";
       winType = "🌟 𝗪𝗜𝗡";
     } 
-    else if (Math.random() < 0.5) { // 50% base chance to win something
-      winnings = bet * 1.5;
-      outcome = "🎯 𝗟𝗨𝗖𝗞𝗬 𝗦𝗣𝗜𝗡! Bonus win!";
-      winType = "🍀 𝗦𝗠𝗔𝗟𝗟 𝗪𝗜𝗡";
+    else if (Math.random() < 0.5) {
+      winnings = bet * 4;
+      outcome = "🎯 𝗟𝗨𝗖𝗞𝗬 𝗕𝗢𝗡𝗨𝗦 𝗪𝗜𝗡!";
+      winType = "🍀 𝗕𝗢𝗡𝗨𝗦";
     } 
     else {
       winnings = -bet;
@@ -104,10 +110,16 @@ module.exports = {
       winType = "☠️ 𝗟𝗢𝗦𝗦";
     }
 
-    await usersData.set(senderID, { money: user.money + winnings });
+    playCount += 1;
+
+    await usersData.set(senderID, {
+      money: user.money + winnings,
+      slotsPlayCount: playCount,
+      slotsLastPlay: now
+    });
+
     const finalBalance = user.money + winnings;
 
-    // Fancy ASCII art for slots
     const slotBox = 
       "╔═════════════════════╗\n" +
       "║  🎰 𝗦𝗟𝗢𝗧 𝗠𝗔𝗖𝗛𝗜𝗡𝗘 🎰  ║\n" +
@@ -115,7 +127,6 @@ module.exports = {
       `║     [ ${slot1} | ${slot2} | ${slot3} ]     ║\n` +
       "╚═════════════════════╝";
 
-    // Color-coded result message
     const resultColor = winnings >= 0 ? "🟢" : "🔴";
     const resultText = winnings >= 0 ? `🏆 𝗪𝗢𝗡: ${formatMoney(winnings)}` : `💸 𝗟𝗢𝗦𝗧: ${formatMoney(bet)}`;
 
@@ -123,7 +134,6 @@ module.exports = {
       `${slotBox}\n\n` +
       `🎯 𝗥𝗘𝗦𝗨𝗟𝗧: ${outcome}\n` +
       `${winType ? `${winType}\n` : ""}` +
-      `${bonus ? `${bonus}\n` : ""}` +
       `\n${resultColor} ${resultText}` +
       `\n💰 𝗕𝗔𝗟𝗔𝗡𝗖𝗘: ${formatMoney(finalBalance)}` +
       `\n\n💡 𝗧𝗜𝗣: Higher bets increase jackpot chances!`;
