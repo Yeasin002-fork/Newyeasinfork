@@ -1,125 +1,159 @@
 module.exports = {
- config: {
- name: "wheel",
- version: "3.1",
- author: "xnil6x",
- shortDescription: "🎡 Ultra-Stable Wheel Game",
- longDescription: "Guaranteed smooth spinning experience with automatic fail-safes",
- category: "Game",
- guide: {
- en: "{p}wheel <amount>"
- }
- },
+  config: {
+    name: "wheel",
+    version: "3.2",
+    author: "xnil6x",
+    shortDescription: "🎡 Ultra-Stable Wheel Game",
+    longDescription: "Guaranteed smooth spinning experience with automatic fail-safes",
+    category: "Game",
+    guide: {
+      en: "{p}wheel <amount>"
+    }
+  },
 
- onStart: async function ({ api, event, args, usersData }) {
- const { senderID, threadID } = event;
- let betAmount = 0;
+  // In-memory store for tracking user spins with timestamps
+  userSpinRecords: {},
 
- try {
- betAmount = this.sanitizeBetAmount(args[0]);
- if (!betAmount) {
- return api.sendMessage(
- `❌ Invalid bet amount! Usage: ${global.GoatBot.config.prefix}wheel 500`,
- threadID
- );
- }
+  onStart: async function ({ api, event, args, usersData }) {
+    const { senderID, threadID, messageID } = event;
+    let betAmount = 0;
 
- const user = await usersData.get(senderID);
- if (!this.isValidUserData(user)) {
- return api.sendMessage(
- "🔒 Account verification failed. Please contact support.",
- threadID
- );
- }
+    try {
+      betAmount = this.sanitizeBetAmount(args[0]);
+      if (!betAmount) {
+        return api.sendMessage(
+          `❌ Invalid bet amount! Usage: ${global.GoatBot.config.prefix}wheel 500`,
+          threadID
+        );
+      }
 
- if (betAmount > user.money) {
- return api.sendMessage(
- `❌ Insufficient balance! You have: ${this.formatMoney(user.money)}`,
- threadID
- );
- }
+      // Max bet limit 10,000,000
+      if (betAmount > 10000000) {
+        return api.sendMessage(
+          `❌ Bet amount exceeds max limit of 10,000,000 coins.`,
+          threadID
+        );
+      }
 
- const { result, winAmount } = await this.executeSpin(api, threadID, betAmount);
- const newBalance = user.money + winAmount;
+      const user = await usersData.get(senderID);
+      if (!this.isValidUserData(user)) {
+        return api.sendMessage(
+          "🔒 Account verification failed. Please contact support.",
+          threadID
+        );
+      }
 
- await usersData.set(senderID, { money: newBalance });
+      if (betAmount > user.money) {
+        return api.sendMessage(
+          `❌ Insufficient balance! You have: ${this.formatMoney(user.money)}`,
+          threadID
+        );
+      }
 
- return api.sendMessage(
- this.generateResultText(result, winAmount, betAmount, newBalance),
- threadID
- );
+      // Check 6-hour, 30 spins limit
+      const now = Date.now();
+      const sixHoursAgo = now - 6 * 60 * 60 * 1000;
+      if (!this.userSpinRecords[senderID]) this.userSpinRecords[senderID] = [];
+      // Filter spins in last 6 hours
+      this.userSpinRecords[senderID] = this.userSpinRecords[senderID].filter(ts => ts > sixHoursAgo);
 
- } catch (error) {
- console.error("Wheel System Error:", error);
- return api.sendMessage(
- `🎡 System recovered! Your ${this.formatMoney(betAmount)} coins are safe. Try spinning again.`,
- threadID
- );
- }
- },
+      if (this.userSpinRecords[senderID].length >= 30) {
+        return api.sendMessage(
+          `⏳ You've reached the max of 30 spins in 6 hours. Please wait before spinning again.`,
+          threadID
+        );
+      }
 
- sanitizeBetAmount: function(input) {
- const amount = parseInt(String(input || "").replace(/[^0-9]/g, ""));
- return amount > 0 ? amount : null;
- },
+      // Add current spin timestamp
+      this.userSpinRecords[senderID].push(now);
 
- isValidUserData: function(user) {
- return user && typeof user.money === "number" && user.money >= 0;
- },
+      const { result, winAmount } = await this.executeSpin(api, threadID, betAmount);
+      const newBalance = user.money + winAmount;
 
- async executeSpin(api, threadID, betAmount) {
- const wheelSegments = [
- { emoji: "🍒", multiplier: 0.5, weight: 20 },
- { emoji: "🍋", multiplier: 1, weight: 30 },
- { emoji: "🍊", multiplier: 2, weight: 25 }, 
- { emoji: "🍇", multiplier: 3, weight: 15 },
- { emoji: "💎", multiplier: 5, weight: 7 },
- { emoji: "💰", multiplier: 10, weight: 3 }
- ];
+      await usersData.set(senderID, { money: newBalance });
 
- await api.sendMessage("🌀 Starting the wheel...", threadID);
- await new Promise(resolve => setTimeout(resolve, 1500));
+      const sentMessage = await api.sendMessage(
+        this.generateResultText(result, winAmount, betAmount, newBalance),
+        threadID
+      );
 
- const totalWeight = wheelSegments.reduce((sum, seg) => sum + seg.weight, 0);
- const randomValue = Math.random() * totalWeight;
- let cumulativeWeight = 0;
+      // Auto delete messages after 30 seconds: bot reply + user command
+      setTimeout(() => {
+        api.unsendMessage(sentMessage.messageID).catch(() => {});
+        api.unsendMessage(messageID).catch(() => {});
+      }, 30000);
 
- const result = wheelSegments.find(segment => {
- cumulativeWeight += segment.weight;
- return randomValue <= cumulativeWeight;
- }) || wheelSegments[0];
+    } catch (error) {
+      console.error("Wheel System Error:", error);
+      return api.sendMessage(
+        `🎡 System recovered! Your ${this.formatMoney(betAmount)} coins are safe. Try spinning again.`,
+        threadID
+      );
+    }
+  },
 
- const winAmount = Math.floor(betAmount * result.multiplier) - betAmount;
+  sanitizeBetAmount: function(input) {
+    const amount = parseInt(String(input || "").replace(/[^0-9]/g, ""));
+    return amount > 0 ? amount : null;
+  },
 
- return { result, winAmount };
- },
+  isValidUserData: function(user) {
+    return user && typeof user.money === "number" && user.money >= 0;
+  },
 
- generateResultText: function(result, winAmount, betAmount, newBalance) {
- const resultText = [
- `🎡 WHEEL STOPPED ON: ${result.emoji}`,
- "",
- this.getOutcomeText(result.multiplier, winAmount, betAmount),
- `💰 NEW BALANCE: ${this.formatMoney(newBalance)}`
- ].join("\n");
+  async executeSpin(api, threadID, betAmount) {
+    const wheelSegments = [
+      { emoji: "🍒", multiplier: 0.5, weight: 20 },
+      { emoji: "🍋", multiplier: 1, weight: 30 },
+      { emoji: "🍊", multiplier: 2, weight: 25 },
+      { emoji: "🍇", multiplier: 3, weight: 15 },
+      { emoji: "💎", multiplier: 5, weight: 7 },
+      { emoji: "💰", multiplier: 10, weight: 3 }
+    ];
 
- return resultText;
- },
+    await api.sendMessage("🌀 Starting the wheel...", threadID);
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
- getOutcomeText: function(multiplier, winAmount, betAmount) {
- if (multiplier < 1) return `❌ LOST: ${this.formatMoney(betAmount * 0.5)}`;
- if (multiplier === 1) return "➖ BROKE EVEN";
- return `✅ WON ${multiplier}X! (+${this.formatMoney(winAmount)})`;
- },
+    const totalWeight = wheelSegments.reduce((sum, seg) => sum + seg.weight, 0);
+    const randomValue = Math.random() * totalWeight;
+    let cumulativeWeight = 0;
 
- formatMoney: function(amount) {
- const units = ["", "K", "M", "B"];
- let unitIndex = 0;
- 
- while (amount >= 1000 && unitIndex < units.length - 1) {
- amount /= 1000;
- unitIndex++;
- }
- 
- return amount.toFixed(amount % 1 ? 2 : 0) + units[unitIndex];
- }
+    const result = wheelSegments.find(segment => {
+      cumulativeWeight += segment.weight;
+      return randomValue <= cumulativeWeight;
+    }) || wheelSegments[0];
+
+    const winAmount = Math.floor(betAmount * result.multiplier) - betAmount;
+
+    return { result, winAmount };
+  },
+
+  generateResultText: function(result, winAmount, betAmount, newBalance) {
+    const resultText = [
+      `🎡 WHEEL STOPPED ON: ${result.emoji}`,
+      "",
+      this.getOutcomeText(result.multiplier, winAmount, betAmount),
+      `💰 NEW BALANCE: ${this.formatMoney(newBalance)}`
+    ].join("\n");
+
+    return resultText;
+  },
+
+  getOutcomeText: function(multiplier, winAmount, betAmount) {
+    if (multiplier < 1) return `❌ LOST: ${this.formatMoney(betAmount * 0.5)}`;
+    if (multiplier === 1) return "➖ BROKE EVEN";
+    return `✅ WON ${multiplier}X! (+${this.formatMoney(winAmount)})`;
+  },
+
+  formatMoney: function(amount) {
+    const units = ["", "K", "M", "B"];
+    let unitIndex = 0;
+
+    while (amount >= 1000 && unitIndex < units.length - 1) {
+      amount /= 1000;
+      unitIndex++;
+    }
+
+    return amount.toFixed(amount % 1 ? 2 : 0) + units[unitIndex];
+  }
 };
