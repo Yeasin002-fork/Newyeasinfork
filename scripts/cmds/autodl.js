@@ -84,7 +84,7 @@ const onChat = async ({ api, event }) => {
 ┃ ⚡ Speed: ${duration}s
 ┃ 🔗 Link: ${shortUrl}
 ╰━━━━━━━━━━━━━━━━━━━━━━╯
-Enjoy your ${mediaLabel.toLowerCase()}! Made with ❤️ by xnil.
+Enjoy your ${mediaLabel.toLowerCase()}! 𝐌𝐀𝐃𝐄 𝐖𝐈𝐓𝐇 ❤️ 𝐁𝐘 𝐁𝐔𝐓𝐓𝐄𝐑𝐅𝐋𝐘 🎀.
 `;
 
  await api.sendMessage(
