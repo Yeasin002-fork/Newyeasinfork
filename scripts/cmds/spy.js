@@ -5,7 +5,7 @@ module.exports = {
  name: "spy",
  aliases: ["whoishe", "whoisshe", "whoami", "stalk"],
  version: "2.0",
- role: 0,
+ role: 2,
  author: "xnil6x",
  description: "Get detailed user information with elegant presentation",
  category: "information",
