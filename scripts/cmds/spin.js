@@ -5,7 +5,7 @@ module.exports = {
   author: "XNIL + Modified by Yeasin",
   countDown: 5,
   role: 0,
-  description: "Spin and win/loss money. 6hr = 30 spins. Msg unsent after 10s.",
+  description: "Spin and win/loss money. 2hr = 30 spins. Msg unsent after 10s.",
   category: "game",
   guide: {
    en: "{p}spin <amount>\n{p}spin top"
@@ -56,13 +56,13 @@ module.exports = {
   userData.data.spinHistory = userData.data.spinHistory || [];
 
   const now = Date.now();
-  const sixHours = 6 * 60 * 60 * 1000;
+  const twoHours = 2 * 60 * 60 * 1000;  // 2 ghonta in milliseconds
 
-  // ✅ Remove old spin timestamps
-  userData.data.spinHistory = userData.data.spinHistory.filter(ts => now - ts < sixHours);
+  // ✅ Remove old spin timestamps older than 2 hours
+  userData.data.spinHistory = userData.data.spinHistory.filter(ts => now - ts < twoHours);
 
   if (userData.data.spinHistory.length >= 30) {
-   const nextReset = new Date(userData.data.spinHistory[0] + sixHours);
+   const nextReset = new Date(userData.data.spinHistory[0] + twoHours);
    const timeLeft = nextReset - now;
 
    const h = Math.floor(timeLeft / 3600000);
@@ -70,7 +70,7 @@ module.exports = {
    const s = Math.floor((timeLeft % 60000) / 1000);
 
    const msg = await message.reply(
-    `❌ Spin limit reached (30 spins/6h).\n⏳ Try again in ${h}h ${m}m ${s}s.`
+    `❌ Spin limit reached (30 spins/2h).\n⏳ Try again in ${h}h ${m}m ${s}s.`
    );
    setTimeout(() => api.unsendMessage(msg.messageID), 10000);
    return;
