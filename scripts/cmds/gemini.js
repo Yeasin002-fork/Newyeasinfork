@@ -1,62 +1,180 @@
 const axios = require("axios");
-const baseApiUrl = async () => {
-  const base = await axios.get(
-    `https://raw.githubusercontent.com/Blankid018/D1PT0/main/baseApiUrl.json`,
-  );
-  return base.data.api;
+
+// ⚠ Keep your API key safe — don't expose it publicly
+const GEMINI_API_KEY = "AIzaSyBtIFJvYDY1ukBE8DjmWM4mYrZkMuELLRs";
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+module.exports.config = {
+  name: "gemini",
+  version: "1.0.0",
+  role: 0,
+  author: "Yeasin",
+  description: "Gemini 2.0 Flash AI with direct API integration and multiple conversation support",
+  usePrefix: true,
+  guide: "[message]",
+  category: "ai",
+  coolDowns: 5,
 };
 
-module.exports = {
-  config: {
-    name: "gemini",
-    version: "1.0",
-    author: "Dipto",
-    description: "gemeini ai",
-    countDown: 5,
-    role: 0,
-    category: "google",
-    guide: {
-      en: "{pn} message | photo reply",
-    },
-  },
-  onStart: async ({ api, args, event }) => {
-    const prompt = args.join(" ");
-    //---- Image Reply -----//
-    if (event.type === "message_reply") {
-      var t = event.messageReply.attachments[0].url;
-      try {
-        const response = await axios.get(
-          `${await baseApiUrl()}/gemini?prompt=${encodeURIComponent(prompt)}&url=${encodeURIComponent(t)}`,
-        );
-        const data2 = response.data.dipto;
-        api.sendMessage(data2, event.threadID, event.messageID);
-      } catch (error) {
-        console.error("Error:", error.message);
-        api.sendMessage(error, event.threadID, event.messageID);
-      }
-    }
-    //---------- Message Reply ---------//
-    else if (!prompt) {
-      return api.sendMessage(
-        "Please provide a prompt or message reply",
+const conversationHistory = new Map();
+
+function getConversationHistory(senderID) {
+  if (!conversationHistory.has(senderID)) {
+    conversationHistory.set(senderID, []);
+  }
+  return conversationHistory.get(senderID);
+}
+
+function updateConversationHistory(senderID, role, text) {
+  const history = getConversationHistory(senderID);
+  history.push({
+    parts: [{ text: text }],
+    role: role,
+  });
+  if (history.length > 20) {
+    history.shift();
+  }
+}
+
+module.exports.onReply = async function ({ api, event, Reply }) {
+  const { author } = Reply;
+  if (author !== event.senderID) return;
+
+  const uid = event.senderID;
+  const userMessage = event.body.toLowerCase();
+
+  try {
+    const history = getConversationHistory(uid);
+    updateConversationHistory(uid, "user", userMessage);
+
+    const requestBody = {
+      contents: [
+        ...history,
+        {
+          parts: [{ text: userMessage }],
+          role: "user",
+        },
+      ],
+    };
+
+    const response = await axios.post(GEMINI_API_URL, requestBody, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const aiResponse = response.data.candidates[0].content.parts[0].text;
+
+    updateConversationHistory(uid, "model", aiResponse);
+
+    const styledMessage =
+      `💬 Gemini Responds:\n` +
+      `──────────────────────────────\n` +
+      `${aiResponse}\n` +
+      `──────────────────────────────\n` +
+      `━ 𝗢𝘄𝗻𝗲𝗿 𝗬𝗲𝗮𝘀𝗶𝗻 🎀 • 𝐍𝐨𝐛𝐢𝐭𝐚 𝐁𝐨𝐭 • 🎀✨`;
+
+    await api.sendMessage(
+      styledMessage,
+      event.threadID,
+      (error, info) => {
+        if (!error) {
+          global.GoatBot.onReply.set(info.messageID, {
+            commandName: this.config.name,
+            type: "reply",
+            messageID: info.messageID,
+            author: event.senderID,
+          });
+        }
+      },
+      event.messageID
+    );
+  } catch (error) {
+    console.error(`Error in gemini3 onReply: ${error.message}`);
+    if (error.response && error.response.data) {
+      api.sendMessage(
+        `❌ Error: ${error.response.data.error.message}`,
         event.threadID,
-        event.messageID,
+        event.messageID
       );
     } else {
-      try {
-        const respons = await axios.get(
-          `${await baseApiUrl()}/gemini?prompt=${encodeURIComponent(prompt)}`,
-        );
-        const message = respons.data.dipto;
-        api.sendMessage(message, event.threadID, event.messageID);
-      } catch (error) {
-        console.error("Error calling Gemini AI:", error);
-        api.sendMessage(
-          `Sorry, there was an error processing your request.${error}`,
-          event.threadID,
-          event.messageID,
-        );
-      }
+      api.sendMessage(
+        `❌ Unexpected error: ${error.message}`,
+        event.threadID,
+        event.messageID
+      );
     }
-  },
+  }
+};
+
+module.exports.onStart = async function ({ api, args, event }) {
+  const uid = event.senderID;
+  const userMessage = args.join(" ").toLowerCase();
+
+  try {
+    if (!userMessage) {
+      api.sendMessage(
+        "Please provide a question for Gemini 2.0 Flash.\n\nExample:\ngemini3 What is the capital of Bangladesh?",
+        event.threadID,
+        event.messageID
+      );
+      return;
+    }
+
+    conversationHistory.set(uid, []);
+    updateConversationHistory(uid, "user", userMessage);
+
+    const requestBody = {
+      contents: [
+        {
+          parts: [{ text: userMessage }],
+          role: "user",
+        },
+      ],
+    };
+
+    const response = await axios.post(GEMINI_API_URL, requestBody, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const aiResponse = response.data.candidates[0].content.parts[0].text;
+
+    updateConversationHistory(uid, "model", aiResponse);
+
+    const styledMessage =
+      `💬 Gemini Responds:\n` +
+      `──────────────────────────────\n` +
+      `${aiResponse}\n` +
+      `──────────────────────────────\n` +
+      `━ 𝗢𝘄𝗻𝗲𝗿 𝗬𝗲𝗮𝘀𝗶𝗻 🎀 • 𝐍𝐨𝐛𝐢𝐭𝐚 𝐁𝐨𝐭 • 🎀✨`;
+
+    await api.sendMessage(
+      { body: styledMessage },
+      event.threadID,
+      (error, info) => {
+        if (!error) {
+          global.GoatBot.onReply.set(info.messageID, {
+            commandName: this.config.name,
+            type: "reply",
+            messageID: info.messageID,
+            author: event.senderID,
+          });
+        }
+      },
+      event.messageID
+    );
+  } catch (error) {
+    console.error(`Error in gemini3 onStart: ${error.message}`);
+    if (error.response && error.response.data) {
+      api.sendMessage(
+        `❌ Error: ${error.response.data.error.message}`,
+        event.threadID,
+        event.messageID
+      );
+    } else {
+      api.sendMessage(
+        `❌ Unexpected error: ${error.message}`,
+        event.threadID,
+        event.messageID
+      );
+    }
+  }
 };
