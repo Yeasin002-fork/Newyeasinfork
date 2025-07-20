@@ -31,7 +31,7 @@ const cmd = {
     };
 
     const now = Date.now();
-    const resetInterval = 00 * 10 * 10 * 1000;
+    const resetInterval = 2 * 60 * 60 * 1000; // 2 ghonta (milliseconds)
     const timeSinceLast = now - data.lastPlayed;
 
     if (timeSinceLast >= resetInterval) {
@@ -65,7 +65,7 @@ const cmd = {
 
     if (args[0] === "help") {
       return message.reply(
-        `🎀 Slot Help:\n\n• ${prefix}slot <amount>: Spin with bet amount\n• ${prefix}slot me: Show your stats\n• ${prefix}slot top: Top 15 players\n• ${prefix}slot list: List all players\n\n• Bet Limit: 500 - 100M\n• Spins: 20 (resets every 8 hours)`
+        `🎀 Slot Help:\n\n• ${prefix}slot <amount>: Spin with bet amount\n• ${prefix}slot me: Show your stats\n• ${prefix}slot top: Top 15 players\n• ${prefix}slot list: List all players\n\n• Bet Limit: 500 - 100M\n• Spins: 20 (resets every 2 hours)`
       );
     }
 
@@ -107,7 +107,7 @@ const cmd = {
     await globalData.set("slotFullData", { data: slotData });
 
     return message.reply({
-      body: createResponse(userName, reels.join(" | "), result, bet, newBalance),
+      body: createResponse(userName, reels.join(" | "), result, bet, newBalance) + `\n\n🎰 Spins left: ${data.todayLeft}/20`,
       mentions: [{ id: userID, tag: userName }]
     });
   }
