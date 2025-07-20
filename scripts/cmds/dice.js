@@ -2,10 +2,10 @@ module.exports = {
   config: {
     name: "dice",
     version: "1.8",
-    author: "xnil6x",
+    author: "xnil6x + Modified by Yeasin",
     shortDescription: "🎲 Dice Game | Bet & win coins!",
     longDescription: "Bet coins and roll the dice. Dice value decides your fate. No need to guess!",
-    category: "Game",
+    category: "game",
     guide: {
       en: "{p}dice <bet amount>\nExample: {p}dice 1000"
     }
@@ -24,7 +24,6 @@ module.exports = {
       return api.sendMessage("⚠️ Invalid usage!\nUse like: {p}dice <bet amount>\nExample: {p}dice 1000", threadID);
     }
 
-    // Bet limit check
     if (betAmount > 10000000) {
       return api.sendMessage("⚠️ Bet limit exceeded!\nYou can bet up to 10,000,000 coins only.", threadID);
     }
@@ -33,67 +32,69 @@ module.exports = {
       return api.sendMessage(`❌ You only have ${formatMoney(userData.money)} coins!`, threadID);
     }
 
-    // 6 ghonta te max 30 bar khelte parbe logic
     const now = Date.now();
-    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const TWO_HOURS = 2 * 60 * 60 * 1000;
 
-    // userData.dicePlay = { lastTime: timestamp, count: number }
     if (!userData.dicePlay) userData.dicePlay = { lastTime: 0, count: 0 };
 
-    // check jodi 6 ghonta cross kore thake last play time theke, tahole count reset korbo
-    if (now - userData.dicePlay.lastTime >= SIX_HOURS) {
+    // Clear old spins if 2 hours passed
+    if (now - userData.dicePlay.lastTime >= TWO_HOURS) {
       userData.dicePlay.count = 0;
       userData.dicePlay.lastTime = now;
     }
 
-    // jodi 30 bar full hoye thake and 6 ghonta cross na kore thake, khelte diba na
     if (userData.dicePlay.count >= 30) {
-      let timeLeft = SIX_HOURS - (now - userData.dicePlay.lastTime);
-      let minutes = Math.floor(timeLeft / 60000);
-      let seconds = Math.floor((timeLeft % 60000) / 1000);
-      return api.sendMessage(`❌ You have reached your 30 games limit in 6 hours.\nPlease wait ${minutes}m ${seconds}s before playing again.`, threadID);
+      const timeLeft = TWO_HOURS - (now - userData.dicePlay.lastTime);
+      const m = Math.floor(timeLeft / 60000);
+      const s = Math.floor((timeLeft % 60000) / 1000);
+      return api.sendMessage(
+        `❌ Dice play limit reached (30/2h).\n⏳ Try again in ${m}m ${s}s.`,
+        threadID
+      );
     }
 
-    // ekhon game khelte parbe, count barabo
-    userData.dicePlay.count += 1;
+    // Deduct a spin
+    userData.dicePlay.count++;
     userData.dicePlay.lastTime = now;
 
     const diceRoll = Math.floor(Math.random() * 6) + 1;
-    let resultMessage = `🎲 Dice rolled: ${diceRoll}\n`;
     let winAmount = 0;
+    let resultText = "";
 
     switch (diceRoll) {
       case 1:
       case 2:
         winAmount = -betAmount;
-        resultMessage += `❌ You lost!\nLost: ${formatMoney(betAmount)} coins`;
+        resultText = `💥 You lost your bet of ${formatMoney(betAmount)}.`;
         break;
       case 3:
         winAmount = betAmount * 2;
-        resultMessage += `✅ You won DOUBLE!\nWon: +${formatMoney(winAmount)} coins`;
+        resultText = `🟢 You won double! +${formatMoney(winAmount)}`;
         break;
       case 4:
       case 5:
         winAmount = betAmount * 3;
-        resultMessage += `✅ You won TRIPLE!\nWon: +${formatMoney(winAmount)} coins`;
+        resultText = `🔥 You won triple! +${formatMoney(winAmount)}`;
         break;
       case 6:
         winAmount = betAmount * 10;
-        resultMessage += `🎉 JACKPOT! Rolled 6\nWon: +${formatMoney(winAmount)} coins`;
+        resultText = `🎉 JACKPOT! You won 10x! +${formatMoney(winAmount)}`;
         break;
     }
 
-    await usersData.set(senderID, {
-      ...userData,
-      money: userData.money + winAmount,
-      dicePlay: userData.dicePlay
-    });
+    userData.money += winAmount;
 
-    return api.sendMessage(resultMessage, threadID);
+    await usersData.set(senderID, userData);
+
+    const spinsLeft = 30 - userData.dicePlay.count;
+
+    return api.sendMessage(
+      `${resultText}\n🎲 Dice rolled: ${diceRoll}\n💰 New Balance: ${formatMoney(userData.money)}\n🔁 Spins Left: ${spinsLeft}/30`,
+      threadID
+    );
   }
 };
 
-// Money formatting function
 function formatMoney(num) {
   if (num >= 1e15) return (num / 1e15).toFixed(2).replace(/\.00$/, "") + "Q";
   if (num >= 1e12) return (num / 1e12).toFixed(2).replace(/\.00$/, "") + "T";
