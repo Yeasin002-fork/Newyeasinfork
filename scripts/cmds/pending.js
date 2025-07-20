@@ -2,7 +2,7 @@ module.exports = {
 
   config: {
 
-    name: "pen",
+    name: "pending",
 
     version: "1.1",
 
