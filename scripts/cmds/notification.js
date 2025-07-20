@@ -4,8 +4,8 @@ module.exports = {
 	config: {
 		name: "notification",
 		aliases: ["notify", "noti"],
-		version: "1.7",
-		author: "NTKhang",
+		version: "1.9", // updated version
+		author: "NTKhang & Modified by Yeasin",
 		countDown: 5,
 		role: 2,
 		description: {
@@ -14,7 +14,7 @@ module.exports = {
 		},
 		category: "owner",
 		guide: {
-			en: "{pn} <tin nhắn>"
+			en: "{pn} <your message>"
 		},
 		envConfig: {
 			delayPerGroup: 250
@@ -42,8 +42,16 @@ module.exports = {
 		const { delayPerGroup } = envCommands[commandName];
 		if (!args[0])
 			return message.reply(getLang("missingMessage"));
+
+		const senderName = event.senderName || "Admin";
+		const senderID = event.senderID;
+
 		const formSend = {
-			body: `${getLang("notification")}\n────────────────\n${args.join(" ")}`,
+			body: `${getLang("notification")}\n👤 @${senderName}\n────────────────\n${args.join(" ")}`,
+			mentions: [{
+				id: senderID,
+				tag: `@${senderName}`
+			}],
 			attachment: await getStreamsFromAttachment(
 				[
 					...event.attachments,
