@@ -5,7 +5,7 @@ module.exports = {
     name: "fbstalk",
     version: "3.0",
     author: "xnil6x",
-    role: 0,
+    role: 4,
     shortDescription: "Advanced Facebook profile lookup",
     longDescription: "Fetch Facebook profile info using UID, profile link, mention, or message reply",
     category: "Utility",
@@ -71,7 +71,7 @@ module.exports = {
         return api.sendMessage("❌ Failed to fetch user data or profile is private", event.threadID);
       }
 
-      let formattedInfo = `🌟 𝗖𝗢𝗠𝗣𝗟𝗘𝗧𝗘 𝗣𝗥𝗢𝗙𝗜𝗟𝗘 𝗜𝗡𝗙𝗢𝗥𝗠𝗔𝗧𝗜𝗢𝗡\n━━━━━━━━━━━━━━━━━━━━━\n`;
+      let formattedInfo = `🎀 𝗖𝗢𝗠𝗣𝗟𝗘𝗧𝗘 𝗣𝗥𝗢𝗙𝗜𝗟𝗘 𝗜𝗡𝗙𝗢𝗥𝗠𝗔𝗧𝗜𝗢𝗡\n━━━━━━━━━━━━━━━━━━━━━\n`;
 
       // Basic Info
       formattedInfo += formatInfo("🆔 User ID", user.id);
