@@ -11,7 +11,6 @@ module.exports = {
     }
   },
 
-  // In-memory store for tracking user spins with timestamps
   userSpinRecords: {},
 
   onStart: async function ({ api, event, args, usersData }) {
@@ -27,7 +26,6 @@ module.exports = {
         );
       }
 
-      // Max bet limit 10,000,000
       if (betAmount > 10000000) {
         return api.sendMessage(
           `❌ Bet amount exceeds max limit of 10,000,000 coins.`,
@@ -50,25 +48,25 @@ module.exports = {
         );
       }
 
-      // Check 2-hour, 30 spins limit
       const now = Date.now();
-      const twoHoursAgo = now - 2 * 60 * 60 * 1000;
+      const sixHoursAgo = now - 6 * 60 * 60 * 1000;
       if (!this.userSpinRecords[senderID]) this.userSpinRecords[senderID] = [];
-      // Filter spins in last 2 hours
-      this.userSpinRecords[senderID] = this.userSpinRecords[senderID].filter(ts => ts > twoHoursAgo);
+      this.userSpinRecords[senderID] = this.userSpinRecords[senderID].filter(ts => ts > sixHoursAgo);
 
       if (this.userSpinRecords[senderID].length >= 30) {
-        const timeLeft = 2 * 60 * 60 * 1000 - (now - this.userSpinRecords[senderID][0]);
+        const timeLeft = 6 * 60 * 60 * 1000 - (now - this.userSpinRecords[senderID][0]);
         const m = Math.floor(timeLeft / 60000);
         const s = Math.floor((timeLeft % 60000) / 1000);
         return api.sendMessage(
-          `⏳ You've reached 30 spins in 2 hours.\nTry again in ${m}m ${s}s.`,
+          `⏳ You've reached 30 spins in 6 hours.\nTry again in ${m}m ${s}s.`,
           threadID
         );
       }
 
-      // Add current spin timestamp
       this.userSpinRecords[senderID].push(now);
+
+      const userInfo = await api.getUserInfo(senderID);
+      const name = userInfo[senderID]?.name || "Someone";
 
       const { result, winAmount } = await this.executeSpin(api, threadID, betAmount);
       const newBalance = user.money + winAmount;
@@ -78,11 +76,12 @@ module.exports = {
       const spinsLeft = 30 - this.userSpinRecords[senderID].length;
 
       const sentMessage = await api.sendMessage(
-        this.generateResultText(result, winAmount, betAmount, newBalance) + `\n🔁 Spins Left: ${spinsLeft}/30`,
+        `👤 ${name} is spinning the wheel...\n\n` +
+        this.generateResultText(result, winAmount, betAmount, newBalance) +
+        `\n🔁 Spins Left: ${spinsLeft}/30`,
         threadID
       );
 
-      // Auto delete messages after 30 seconds: bot reply + user command
       setTimeout(() => {
         api.unsendMessage(sentMessage.messageID).catch(() => {});
         api.unsendMessage(messageID).catch(() => {});
@@ -97,12 +96,12 @@ module.exports = {
     }
   },
 
-  sanitizeBetAmount: function(input) {
+  sanitizeBetAmount: function (input) {
     const amount = parseInt(String(input || "").replace(/[^0-9]/g, ""));
     return amount > 0 ? amount : null;
   },
 
-  isValidUserData: function(user) {
+  isValidUserData: function (user) {
     return user && typeof user.money === "number" && user.money >= 0;
   },
 
@@ -133,7 +132,7 @@ module.exports = {
     return { result, winAmount };
   },
 
-  generateResultText: function(result, winAmount, betAmount, newBalance) {
+  generateResultText: function (result, winAmount, betAmount, newBalance) {
     const resultText = [
       `🎡 WHEEL STOPPED ON: ${result.emoji}`,
       "",
@@ -144,13 +143,13 @@ module.exports = {
     return resultText;
   },
 
-  getOutcomeText: function(multiplier, winAmount, betAmount) {
+  getOutcomeText: function (multiplier, winAmount, betAmount) {
     if (multiplier < 1) return `❌ LOST: ${this.formatMoney(betAmount * 0.5)}`;
     if (multiplier === 1) return "➖ BROKE EVEN";
     return `✅ WON ${multiplier}X! (+${this.formatMoney(winAmount)})`;
   },
 
-  formatMoney: function(amount) {
+  formatMoney: function (amount) {
     const units = ["", "K", "M", "B"];
     let unitIndex = 0;
 
