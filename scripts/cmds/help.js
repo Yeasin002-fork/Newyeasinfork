@@ -57,6 +57,13 @@ module.exports = {
     const prefix = getPrefix(threadID);
     const commandName = args[0]?.toLowerCase();
 
+    const replyWithAutoUnsend = async (msg) => {
+      const sentMsg = await message.reply(msg);
+      setTimeout(() => {
+        message.unsend(sentMsg.messageID);
+      }, 30 * 1000); // 30 seconds
+    };
+
     if (commandName === 'c' && args[1]) {
       const categoryArg = args[1].toUpperCase();
       const commandsInCategory = [];
@@ -70,7 +77,7 @@ module.exports = {
       }
 
       if (commandsInCategory.length === 0) {
-        return message.reply(`❌ No commands found in category: ${categoryArg}`);
+        return replyWithAutoUnsend(`❌ No commands found in category: ${categoryArg}`);
       }
 
       let replyMsg = this.langs.en.helpHeader;
@@ -83,7 +90,7 @@ module.exports = {
       replyMsg += this.langs.en.helpFooter;
       replyMsg += "\n" + this.langs.en.totalCommands.replace(/{total}/g, commandsInCategory.length);
 
-      return message.reply(replyMsg);
+      return replyWithAutoUnsend(replyMsg);
     }
 
     if (!commandName || commandName === 'all') {
@@ -118,12 +125,12 @@ module.exports = {
 
       replyMsg += "\n" + this.langs.en.totalCommands.replace(/{total}/g, totalCommands);
 
-      return message.reply(replyMsg);
+      return replyWithAutoUnsend(replyMsg);
     }
 
     let cmd = commands.get(commandName) || commands.get(aliases.get(commandName));
     if (!cmd) {
-      return message.reply(this.langs.en.commandNotFound.replace(/{command}/g, commandName));
+      return replyWithAutoUnsend(this.langs.en.commandNotFound.replace(/{command}/g, commandName));
     }
 
     const config = cmd.config;
@@ -157,6 +164,6 @@ module.exports = {
                 this.langs.en.usageBody.replace(/{usage}/g, guide.split("\n").join("\n ")) + "\n" +
                 this.langs.en.usageFooter;
 
-    return message.reply(replyMsg);
+    return replyWithAutoUnsend(replyMsg);
   }
 };
