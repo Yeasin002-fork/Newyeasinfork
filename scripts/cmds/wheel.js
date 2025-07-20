@@ -2,7 +2,7 @@ module.exports = {
   config: {
     name: "wheel",
     version: "3.2",
-    author: "xnil6x",
+    author: "xnil6x + Modified by Yeasin",
     shortDescription: "🎡 Ultra-Stable Wheel Game",
     longDescription: "Guaranteed smooth spinning experience with automatic fail-safes",
     category: "Game",
@@ -50,16 +50,19 @@ module.exports = {
         );
       }
 
-      // Check 6-hour, 30 spins limit
+      // Check 2-hour, 30 spins limit
       const now = Date.now();
-      const sixHoursAgo = now - 6 * 60 * 60 * 1000;
+      const twoHoursAgo = now - 2 * 60 * 60 * 1000;
       if (!this.userSpinRecords[senderID]) this.userSpinRecords[senderID] = [];
-      // Filter spins in last 6 hours
-      this.userSpinRecords[senderID] = this.userSpinRecords[senderID].filter(ts => ts > sixHoursAgo);
+      // Filter spins in last 2 hours
+      this.userSpinRecords[senderID] = this.userSpinRecords[senderID].filter(ts => ts > twoHoursAgo);
 
       if (this.userSpinRecords[senderID].length >= 30) {
+        const timeLeft = 2 * 60 * 60 * 1000 - (now - this.userSpinRecords[senderID][0]);
+        const m = Math.floor(timeLeft / 60000);
+        const s = Math.floor((timeLeft % 60000) / 1000);
         return api.sendMessage(
-          `⏳ You've reached the max of 30 spins in 6 hours. Please wait before spinning again.`,
+          `⏳ You've reached 30 spins in 2 hours.\nTry again in ${m}m ${s}s.`,
           threadID
         );
       }
@@ -72,8 +75,10 @@ module.exports = {
 
       await usersData.set(senderID, { money: newBalance });
 
+      const spinsLeft = 30 - this.userSpinRecords[senderID].length;
+
       const sentMessage = await api.sendMessage(
-        this.generateResultText(result, winAmount, betAmount, newBalance),
+        this.generateResultText(result, winAmount, betAmount, newBalance) + `\n🔁 Spins Left: ${spinsLeft}/30`,
         threadID
       );
 
