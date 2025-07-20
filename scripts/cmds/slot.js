@@ -65,7 +65,7 @@ const cmd = {
 
     if (args[0] === "help") {
       return message.reply(
-        `🎀 Slot Help:\n\n• ${prefix}slot <amount>: Spin with bet amount\n• ${prefix}slot me: Show your stats\n• ${prefix}slot top: Top 15 players\n• ${prefix}slot list: List all players\n\n• Bet Limit: 500 - 100M\n• Spins: 20 (resets every 2 hours)`
+        `🎀 Slot Help:\n\n• ${prefix}slot <amount>: Spin with bet amount\n• ${prefix}slot me: Show your stats\n• ${prefix}slot top: Top 15 players\n• ${prefix}slot list: List all players\n\n• Bet Limit: 500 - 10M\n• Spins: 20 (resets every 2 hours)`
       );
     }
 
@@ -75,7 +75,7 @@ const cmd = {
 
     const bet = parseMoney(args[0]);
     if (!bet || bet < 500) return message.reply("• You can bet lowest 500!");
-    if (bet > 100000000) return message.reply("• You can bet Highest 100M!");
+    if (bet > 10000000) return message.reply("• You can bet Highest 10M!");
     if (bet > userData.money) return message.reply(`• Your Balance: ${formatMoney(userData.money)}`);
 
     const symbols = [
