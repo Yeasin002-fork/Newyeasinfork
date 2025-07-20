@@ -5,7 +5,7 @@ const path = require("path");
 
 module.exports = {
   config: {
-    name: "pair",
+    name: "pair2",
     author: "xnil",
     role: 0,
     shortDescription: "Create romantic pairing",
