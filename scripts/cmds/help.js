@@ -20,7 +20,7 @@ module.exports = {
   langs: {
     en: {
       helpHeader: "╔══════════◇◆◇══════════╗\n"
-                + "      BOT COMMAND LIST\n"
+                + "  𝗕𝗨𝗧𝗧𝗘𝗥𝗙𝗟𝗬 𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗟𝗜𝗦𝗧\n"
                 + "╠══════════◇◆◇══════════╣",
       categoryHeader: "\n   ┌────── {category} ──────┐\n",
       commandItem: "║ │ 🟢 {name}",
@@ -48,7 +48,7 @@ module.exports = {
       roleText1: "👑 Group Admins",
       roleText2: "⚡ Bot Admins",
       totalCommands: "📊 Total Commands: {total}\n"
-                  + "xnil"
+                  + "𝐘𝐞𝐚𝐬𝐢𝐧"
     }
   },
 
@@ -56,7 +56,6 @@ module.exports = {
     const { threadID } = event;
     const prefix = getPrefix(threadID);
     const commandName = args[0]?.toLowerCase();
-    const bannerPath = path.join(__dirname, "assets", "20250319_111041.png");
 
     if (commandName === 'c' && args[1]) {
       const categoryArg = args[1].toUpperCase();
@@ -119,19 +118,7 @@ module.exports = {
 
       replyMsg += "\n" + this.langs.en.totalCommands.replace(/{total}/g, totalCommands);
 
-      try {
-        if (fs.existsSync(bannerPath)) {
-          return message.reply({
-            body: replyMsg,
-            attachment: fs.createReadStream(bannerPath)
-          });
-        } else {
-          return message.reply(replyMsg);
-        }
-      } catch (e) {
-        console.error("Couldn't load help banner:", e);
-        return message.reply(replyMsg);
-      }
+      return message.reply(replyMsg);
     }
 
     let cmd = commands.get(commandName) || commands.get(aliases.get(commandName));
