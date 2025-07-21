@@ -5,7 +5,7 @@ module.exports = {
   author: "XNIL + Modified by Yeasin",
   countDown: 5,
   role: 0,
-  description: "Spin and win/loss money. 2hr = 30 spins. Msg unsent after 10s.",
+  description: "Spin and win/loss money. 2hr = 30 spins. Msg unsent disabled.",
   category: "game",
   guide: {
    en: "{p}spin <amount>\n{p}spin top"
@@ -14,6 +14,7 @@ module.exports = {
 
  onStart: async function ({ message, event, args, usersData, api }) {
   const senderID = event.senderID;
+  const threadID = event.threadID;
   const subCommand = args[0];
 
   // ✅ /spin top leaderboard
@@ -27,7 +28,6 @@ module.exports = {
 
    if (top.length === 0) {
     const msg = await message.reply("❌ No spin winners yet.");
-    setTimeout(() => api.unsendMessage(msg.messageID), 10000);
     return;
    }
 
@@ -36,8 +36,7 @@ module.exports = {
     return `${i + 1}. ${name} – 💸 ${user.data.totalSpinWin} coins`;
    }).join("\n");
 
-   const msg = await message.reply(`🏆 Top Spin Winners:\n\n${result}`);
-   setTimeout(() => api.unsendMessage(msg.messageID), 10000);
+   await message.reply(`🏆 Top Spin Winners:\n\n${result}`);
    return;
   }
 
@@ -45,7 +44,6 @@ module.exports = {
   const betAmount = parseInt(subCommand);
   if (isNaN(betAmount) || betAmount <= 0) {
    const msg = await message.reply("❌ Usage:\n/spin <amount>\n/spin top");
-   setTimeout(() => api.unsendMessage(msg.messageID), 10000);
    return;
   }
 
@@ -72,13 +70,11 @@ module.exports = {
    const msg = await message.reply(
     `❌ Spin limit reached (30 spins/2h).\n⏳ Try again in ${h}h ${m}m ${s}s.`
    );
-   setTimeout(() => api.unsendMessage(msg.messageID), 10000);
    return;
   }
 
   if (userData.money < betAmount) {
    const msg = await message.reply(`❌ Not enough money.\n💰 Your balance: ${userData.money}`);
-   setTimeout(() => api.unsendMessage(msg.messageID), 10000);
    return;
   }
 
@@ -106,9 +102,21 @@ module.exports = {
   userData.data.spinHistory.push(now);
   await usersData.set(senderID, userData);
 
-  const msg = await message.reply(
-   `${result.text}\n🎰 You bet: ${betAmount}$\n💸 You won: ${reward}$\n💰 New balance: ${userData.money}$\n🔁 Spins left: ${30 - userData.data.spinHistory.length}/30`
-  );
-  setTimeout(() => api.unsendMessage(msg.messageID), 10000);
+  // Get user name for mention text
+  const userName = (await api.getUserInfo(senderID))[senderID]?.name || "Player";
+
+  // Prepare mention object without '@' in text, but mention notify will work
+  const mentions = [{ id: senderID, tag: userName }];
+
+  // Add crown emoji before mention tag in message body
+  const messageBody =
+   `‎👑 ${userName} spun the wheel!\n` +
+   `${result.text}\n` +
+   `🎰 You bet: ${betAmount}$\n` +
+   `💸 You won: ${reward}$\n` +
+   `💰 New balance: ${userData.money}$\n` +
+   `🔁 Spins left: ${30 - userData.data.spinHistory.length}/30`;
+
+  await api.sendMessage({ body: messageBody, mentions }, threadID);
  }
 };
