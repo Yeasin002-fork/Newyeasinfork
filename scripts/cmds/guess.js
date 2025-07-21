@@ -9,7 +9,7 @@ module.exports = {
 	config: {
 		name: "guess",
 		version: "1.1",
-		author: "Dipto",
+		author: "Dipto + Modified by Yeasin",
 		countDown: 5,
 		role: 0,
 		limit: 10,
@@ -68,7 +68,7 @@ module.exports = {
 		});
 	},
 
-	onReply: async function ({ message, event, Reply, getLang }) {
+	onReply: async function ({ message, event, Reply, getLang, usersData }) {
 		const { senderID } = event;
 		const { author, betAmount, emojis, winningPosition, winningEmoji, messageID } = Reply;
 
@@ -80,19 +80,20 @@ module.exports = {
 			return message.reply(getLang("invalidChoice"));
 
 		global.GoatBot.onReply.delete(messageID);
+		await message.unsend(messageID);
 
 		if (!global.guessStats) global.guessStats = {};
-
 		if (!global.guessStats[senderID]) {
 			global.guessStats[senderID] = {
 				totalPlays: 0,
 				winCount: 0
 			};
 		}
-
 		global.guessStats[senderID].totalPlays++;
 
-		await message.unsend(messageID);
+		const userData = await usersData.get(senderID);
+		const userName = userData?.name || "User";
+		const tagData = { tag: `👑 ${userName}`, id: senderID };
 
 		let resultMessage = "";
 		if (userChoice === winningPosition) {
@@ -104,8 +105,11 @@ module.exports = {
 		}
 
 		const stats = global.guessStats[senderID];
-		resultMessage += `\n\n🕹️ You won ${stats.winCount}/${stats.totalPlays} times`;
+		resultMessage = `👑 ${userName},\n${resultMessage}\n\n🕹️ You won ${stats.winCount}/${stats.totalPlays} times`;
 
-		return message.reply(resultMessage);
+		return message.reply({
+			body: resultMessage,
+			mentions: [tagData]
+		});
 	}
 };
