@@ -1,7 +1,7 @@
 module.exports = {
   config: {
     name: "wheel",
-    version: "3.2",
+    version: "3.3",
     author: "xnil6x + Modified by Yeasin",
     shortDescription: "🎡 Ultra-Stable Wheel Game",
     longDescription: "Guaranteed smooth spinning experience with automatic fail-safes",
@@ -49,22 +49,23 @@ module.exports = {
       }
 
       const now = Date.now();
-      const sixHoursAgo = now - 6 * 60 * 60 * 1000;
+      const twoHoursAgo = now - 2 * 60 * 60 * 1000; // 2 hours
       if (!this.userSpinRecords[senderID]) this.userSpinRecords[senderID] = [];
-      this.userSpinRecords[senderID] = this.userSpinRecords[senderID].filter(ts => ts > sixHoursAgo);
+      this.userSpinRecords[senderID] = this.userSpinRecords[senderID].filter(ts => ts > twoHoursAgo);
 
       if (this.userSpinRecords[senderID].length >= 30) {
-        const timeLeft = 6 * 60 * 60 * 1000 - (now - this.userSpinRecords[senderID][0]);
+        const timeLeft = 2 * 60 * 60 * 1000 - (now - this.userSpinRecords[senderID][0]);
         const m = Math.floor(timeLeft / 60000);
         const s = Math.floor((timeLeft % 60000) / 1000);
         return api.sendMessage(
-          `⏳ You've reached 30 spins in 6 hours.\nTry again in ${m}m ${s}s.`,
+          `⏳ You've reached 30 spins in 2 hours.\nTry again in ${m}m ${s}s.`,
           threadID
         );
       }
 
       this.userSpinRecords[senderID].push(now);
 
+      // Get user name for mention
       const userInfo = await api.getUserInfo(senderID);
       const name = userInfo[senderID]?.name || "Someone";
 
@@ -75,17 +76,23 @@ module.exports = {
 
       const spinsLeft = 30 - this.userSpinRecords[senderID].length;
 
-      const sentMessage = await api.sendMessage(
-        `👤 ${name} is spinning the wheel...\n\n` +
-        this.generateResultText(result, winAmount, betAmount, newBalance) +
-        `\n🔁 Spins Left: ${spinsLeft}/30`,
-        threadID
-      );
+      // Prepare mention array
+      const mentions = [{ tag: name, id: senderID }];
 
+      // Add crown emoji before user name in message body
+      const text = `‎👑 ${name}, you spun the wheel!\n\n` +
+        this.generateResultText(result, winAmount, betAmount, newBalance) +
+        `\n🔁 Spins Left: ${spinsLeft}/30`;
+
+      await api.sendMessage({ body: text, mentions }, threadID);
+
+      // unsend off as per request (no auto unsend)
+      // If you want unsend on, uncomment below:
+      /*
       setTimeout(() => {
-        api.unsendMessage(sentMessage.messageID).catch(() => {});
-        api.unsendMessage(messageID).catch(() => {});
+        api.unsendMessage(messageID).catch(() => { });
       }, 30000);
+      */
 
     } catch (error) {
       console.error("Wheel System Error:", error);
@@ -134,19 +141,19 @@ module.exports = {
 
   generateResultText: function (result, winAmount, betAmount, newBalance) {
     const resultText = [
-      `🎡 WHEEL STOPPED ON: ${result.emoji}`,
+      `🎡 Wheel stopped on: ${result.emoji}`,
       "",
       this.getOutcomeText(result.multiplier, winAmount, betAmount),
-      `💰 NEW BALANCE: ${this.formatMoney(newBalance)}`
+      `💰 New Balance: ${this.formatMoney(newBalance)}`
     ].join("\n");
 
     return resultText;
   },
 
   getOutcomeText: function (multiplier, winAmount, betAmount) {
-    if (multiplier < 1) return `❌ LOST: ${this.formatMoney(betAmount * 0.5)}`;
-    if (multiplier === 1) return "➖ BROKE EVEN";
-    return `✅ WON ${multiplier}X! (+${this.formatMoney(winAmount)})`;
+    if (multiplier < 1) return `❌ Lost: ${this.formatMoney(betAmount * 0.5)}`;
+    if (multiplier === 1) return "➖ Broke even";
+    return `✅ Won ${multiplier}X! (+${this.formatMoney(winAmount)})`;
   },
 
   formatMoney: function (amount) {
