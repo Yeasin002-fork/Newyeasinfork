@@ -1,10 +1,19 @@
+function formatMoney(num) {
+  if (num >= 1e15) return (num / 1e15).toFixed(2).replace(/\.00$/, "") + "Q";
+  if (num >= 1e12) return (num / 1e12).toFixed(2).replace(/\.00$/, "") + "T";
+  if (num >= 1e9) return (num / 1e9).toFixed(2).replace(/\.00$/, "") + "B";
+  if (num >= 1e6) return (num / 1e6).toFixed(2).replace(/\.00$/, "") + "M";
+  if (num >= 1e3) return (num / 1e3).toFixed(2).replace(/\.00$/, "") + "K";
+  return num.toString();
+}
+
 module.exports = {
   config: {
     name: "dice",
-    version: "1.8",
+    version: "2.1",
     author: "xnil6x + Modified by Yeasin",
     shortDescription: "🎲 Dice Game | Bet & win coins!",
-    longDescription: "Bet coins and roll the dice. Dice value decides your fate. No need to guess!",
+    longDescription: "Bet coins and roll the dice. Dice value decides your fate.",
     category: "game",
     guide: {
       en: "{p}dice <bet amount>\nExample: {p}dice 1000"
@@ -25,7 +34,7 @@ module.exports = {
     }
 
     if (betAmount > 10000000) {
-      return api.sendMessage("⚠️ Bet limit exceeded!\nYou can bet up to 10,000,000 coins only.", threadID);
+      return api.sendMessage("⚠️ Bet limit exceeded!\nMax bet: 10,000,000 coins.", threadID);
     }
 
     if (betAmount > userData.money) {
@@ -37,7 +46,6 @@ module.exports = {
 
     if (!userData.dicePlay) userData.dicePlay = { lastTime: 0, count: 0 };
 
-    // Clear old spins if 2 hours passed
     if (now - userData.dicePlay.lastTime >= TWO_HOURS) {
       userData.dicePlay.count = 0;
       userData.dicePlay.lastTime = now;
@@ -53,13 +61,13 @@ module.exports = {
       );
     }
 
-    // Deduct a spin
     userData.dicePlay.count++;
     userData.dicePlay.lastTime = now;
 
     const diceRoll = Math.floor(Math.random() * 6) + 1;
     let winAmount = 0;
     let resultText = "";
+    let multiplier = 0;
 
     switch (diceRoll) {
       case 1:
@@ -68,38 +76,32 @@ module.exports = {
         resultText = `💥 You lost your bet of ${formatMoney(betAmount)}.`;
         break;
       case 3:
-        winAmount = betAmount * 2;
-        resultText = `🟢 You won double! +${formatMoney(winAmount)}`;
+        multiplier = 2;
+        winAmount = betAmount * multiplier;
+        resultText = `🟢 You won x${multiplier} = +${formatMoney(winAmount)}`;
         break;
       case 4:
       case 5:
-        winAmount = betAmount * 3;
-        resultText = `🔥 You won triple! +${formatMoney(winAmount)}`;
+        multiplier = 3;
+        winAmount = betAmount * multiplier;
+        resultText = `🔥 You won x${multiplier} = +${formatMoney(winAmount)}`;
         break;
       case 6:
-        winAmount = betAmount * 10;
-        resultText = `🎉 JACKPOT! You won 10x! +${formatMoney(winAmount)}`;
+        multiplier = 10;
+        winAmount = betAmount * multiplier;
+        resultText = `🎉 You won x${multiplier} = +${formatMoney(winAmount)}`;
         break;
     }
 
     userData.money += winAmount;
-
     await usersData.set(senderID, userData);
 
     const spinsLeft = 30 - userData.dicePlay.count;
+    const displayName = (userData.name || "Player").replace(/^@/, "");
 
-    return api.sendMessage(
-      `${resultText}\n🎲 Dice rolled: ${diceRoll}\n💰 New Balance: ${formatMoney(userData.money)}\n🔁 Spins Left: ${spinsLeft}/30`,
-      threadID
-    );
+    return api.sendMessage({
+      body: `‎👑 ${displayName} ${resultText}\n🎲 Dice rolled: ${diceRoll}\n💰 New Balance: ${formatMoney(userData.money)}\n🔁 Spins Left: ${spinsLeft}/30`,
+      mentions: [{ tag: displayName, id: senderID }]
+    }, threadID);
   }
 };
-
-function formatMoney(num) {
-  if (num >= 1e15) return (num / 1e15).toFixed(2).replace(/\.00$/, "") + "Q";
-  if (num >= 1e12) return (num / 1e12).toFixed(2).replace(/\.00$/, "") + "T";
-  if (num >= 1e9) return (num / 1e9).toFixed(2).replace(/\.00$/, "") + "B";
-  if (num >= 1e6) return (num / 1e6).toFixed(2).replace(/\.00$/, "") + "M";
-  if (num >= 1e3) return (num / 1e3).toFixed(2).replace(/\.00$/, "") + "K";
-  return num.toString();
-}
